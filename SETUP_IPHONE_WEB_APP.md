@@ -63,7 +63,20 @@ https://你的GitHub用户名.github.io/spdr-gld-report/
 
 注意：GitHub Pages 网站和 Public 仓库都公开可访问。这个项目只包含公开的 GLD 市场报告，不要把任何令牌、聊天 ID 或私人内容放进项目文件。GitHub Secrets 不会被提交到仓库。
 
-## 三、建立 Telegram 机器人
+## 三、建立钉钉机器人（推荐，中国大陆网络）
+
+在钉钉中新建一个群，在群设置中添加“自定义机器人”，安全设置选择“加签”。将 Webhook 和加签密钥分别保存到 GitHub Actions Repository secrets：
+
+| 名称 | 内容 |
+|---|---|
+| `DINGTALK_WEBHOOK` | 自定义机器人的完整 Webhook 地址 |
+| `DINGTALK_SECRET` | 以 `SEC` 开头的加签密钥 |
+
+每日任务会发送 Markdown 摘要、报告图片和历史网页链接。发送成功会在 `reports.json` 记录 `dingtalk_notified_at`；发送失败不会阻止网页更新，并会在下一次每日任务重试。
+
+不要选择 IP 白名单：GitHub 托管运行器的出口地址可能变化。Webhook 和密钥不能写入 Python、Workflow、MD 或 Git commit。
+
+## 四、Telegram 机器人（可选）
 
 ### 1. 创建机器人并取得 Token
 
@@ -103,7 +116,7 @@ https://api.telegram.org/bot你的Token/getUpdates
 
 这个数字就是 `TELEGRAM_CHAT_ID`。取得后可以关闭这个网页。
 
-## 四、把秘密安全地交给 GitHub Actions
+## 五、把秘密安全地交给 GitHub Actions
 
 在 GitHub 仓库进入：
 
@@ -126,7 +139,7 @@ Settings -> Secrets and variables -> Actions
 
 Secrets 不会显示在代码里；不要把它们添加到 `requirements.txt`、MD、Python、Workflow 或 Git commit。
 
-## 五、做第一次完整测试
+## 六、做第一次完整测试
 
 进入：
 
@@ -156,7 +169,7 @@ WEB_APP_URL='你的Pages网址' \
 
 不要把包含真实 Token 的命令保存进 Shell 脚本、截图或聊天记录。运行后可清除当前终端历史中的对应行。
 
-## 六、添加到 iPhone 主屏幕
+## 七、添加到 iPhone 主屏幕
 
 1. 必须使用 Safari 打开 GitHub Pages 地址；
 2. 点击底部“分享”按钮；
@@ -166,7 +179,7 @@ WEB_APP_URL='你的Pages网址' \
 
 以后它会像独立 App 一样从桌面全屏打开。Telegram 负责主动把新图片发到手机，Web App 负责查看最新和历史记录。
 
-## 七、修改每日执行时间
+## 八、修改每日执行时间
 
 当前任务在北京时间每天 `16:17` 运行，配置位于：
 
@@ -183,7 +196,7 @@ timezone: "Asia/Shanghai"
 
 表示北京时间 16:17。由于 SPDR 数据通常按美国交易日更新，建议在北京时间下午或晚上运行。GitHub 定时任务可能延迟几分钟，不保证精确到秒。
 
-## 八、以后如何更新代码
+## 九、以后如何更新代码
 
 本地修改完成后：
 
@@ -195,7 +208,7 @@ git push
 
 只要 `docs/` 发生变化，`Deploy GLD Web App` 会自动更新手机网页。每日任务生成新报告后也会提交历史图片，并触发页面部署。
 
-## 九、常见问题
+## 十、常见问题
 
 ### Telegram 没收到图片
 

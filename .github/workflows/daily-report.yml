@@ -38,8 +38,10 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
           WEB_APP_URL: ${{ vars.WEB_APP_URL }}
-        run: python gld_weekly_chart.py --publish-dir docs --send-telegram
+        run: python gld_weekly_chart.py --publish-dir docs --send-dingtalk --send-telegram
 
       - name: Save report history to repository
         run: |

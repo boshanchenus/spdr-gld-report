@@ -13,6 +13,9 @@ Fallback usage with a local workbook:
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -25,6 +28,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
+from urllib.parse import quote_plus, urlparse
 
 if "MPLCONFIGDIR" not in os.environ:
     mpl_config_dir = Path(__file__).resolve().parent / ".matplotlib-cache"
@@ -518,6 +522,9 @@ def publish_report(
         "latest_change": round(latest_change, 2),
         "net_change": round(net_change, 2),
         "ending_tonnes": round(ending_tonnes, 2),
+        "dingtalk_notified_at": (
+            existing.get("dingtalk_notified_at") if existing else None
+        ),
     }
 
     shutil.copy2(output_path, archive_path)
@@ -542,6 +549,97 @@ def publish_report(
         manifest["updated_at"] = existing_manifest.get("updated_at", generated_at)
     _atomic_write_json(manifest_path, manifest)
     return report, is_new, archive_path
+
+
+def mark_report_notified(
+    publish_dir: str | Path,
+    report_id: str,
+    channel: str,
+) -> None:
+    """Persist delivery state so failed notifications retry on the next run."""
+    manifest_path = Path(publish_dir).expanduser().resolve() / "reports.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    reports = manifest.get("reports", [])
+    for item in reports:
+        if isinstance(item, dict) and item.get("id") == report_id:
+            item[f"{channel}_notified_at"] = datetime.now(timezone.utc).isoformat(
+                timespec="seconds"
+            )
+            _atomic_write_json(manifest_path, manifest)
+            return
+    raise RuntimeError(f"Cannot mark missing report as notified: {report_id}")
+
+
+def send_dingtalk_report(
+    report: dict[str, object],
+    web_app_url: str,
+) -> bool:
+    """Send a signed DingTalk Markdown notification with the public chart."""
+    webhook = os.environ.get("DINGTALK_WEBHOOK", "").strip()
+    secret = os.environ.get("DINGTALK_SECRET", "").strip()
+    if not webhook or not secret:
+        print("DingTalk skipped: DINGTALK_WEBHOOK or DINGTALK_SECRET is not set.")
+        return False
+
+    parsed = urlparse(webhook)
+    if parsed.scheme != "https" or parsed.hostname != "oapi.dingtalk.com":
+        raise RuntimeError("DingTalk Webhook must use https://oapi.dingtalk.com/")
+
+    timestamp = str(int(time.time() * 1000))
+    string_to_sign = f"{timestamp}\n{secret}".encode("utf-8")
+    signature = base64.b64encode(
+        hmac.new(secret.encode("utf-8"), string_to_sign, hashlib.sha256).digest()
+    ).decode("utf-8")
+    separator = "&" if parsed.query else "?"
+    signed_webhook = (
+        f"{webhook}{separator}timestamp={timestamp}&sign={quote_plus(signature)}"
+    )
+
+    site_url = web_app_url.strip().rstrip("/")
+    image_path = str(report["image"]).lstrip("/")
+    image_url = f"{site_url}/{image_path}" if site_url else ""
+    lines = [
+        "### SPDR GLD 最新报告",
+        f"- 数据截至：{report['source_date']}",
+        f"- 最新周变化：{float(report['latest_change']):+.2f} 吨",
+        f"- 近 {report['weeks']} 周合计：{float(report['net_change']):+.2f} 吨",
+        f"- 最新持仓：{float(report['ending_tonnes']):.2f} 吨",
+    ]
+    if image_url:
+        lines.extend(["", f"![SPDR GLD 报告]({image_url})"])
+    if site_url:
+        lines.extend(["", f"[查看全部历史报告]({site_url}/)"])
+
+    try:
+        response = requests.post(
+            signed_webhook,
+            json={
+                "msgtype": "markdown",
+                "markdown": {
+                    "title": f"GLD 报告 {report['source_date']}",
+                    "text": "\n".join(lines),
+                },
+                "at": {"isAtAll": False},
+            },
+            timeout=30,
+        )
+        if not response.ok:
+            raise RuntimeError(
+                f"DingTalk HTTP {response.status_code}: {response.text[:300]}"
+            )
+        payload = response.json()
+    except requests.RequestException as exc:
+        # Do not leak the signed Webhook or access token through exception text.
+        raise RuntimeError(
+            f"DingTalk network request failed: {type(exc).__name__}"
+        ) from exc
+    if payload.get("errcode") != 0:
+        raise RuntimeError(
+            f"DingTalk rejected the report: "
+            f"{payload.get('errcode')} {payload.get('errmsg', '')}"
+        )
+    print("DingTalk report sent successfully.")
+    return True
 
 
 def send_telegram_photo(
@@ -637,6 +735,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Send Telegram only when the official data date creates a new report.",
     )
+    parser.add_argument(
+        "--send-dingtalk",
+        action="store_true",
+        help="Send reports to a signed DingTalk custom-robot Webhook.",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -658,6 +761,19 @@ def main(argv: list[str] | None = None) -> int:
             )
             state = "new" if is_new else "updated existing"
             print(f"Published {state} report: {archive_path}")
+            if args.send_dingtalk and not report.get("dingtalk_notified_at"):
+                try:
+                    if send_dingtalk_report(
+                        report,
+                        os.environ.get("WEB_APP_URL", ""),
+                    ):
+                        mark_report_notified(
+                            args.publish_dir, str(report["id"]), "dingtalk"
+                        )
+                except Exception as exc:
+                    # Report generation remains the primary job. Leaving the
+                    # marker empty makes the next daily run retry delivery.
+                    print(f"Warning: DingTalk delivery failed: {exc}", file=sys.stderr)
             if args.send_telegram:
                 if is_new:
                     send_telegram_photo(

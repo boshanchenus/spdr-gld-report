@@ -3,7 +3,7 @@
 最后更新：2026-08-12  
 当前 APP 版本：1.1（build 2）
 
-> 2026-08-12 新增：iPhone Web App、日期历史归档、Telegram 图片发送和 GitHub Actions 每日任务。账号开通与手机安装步骤见 `SETUP_IPHONE_WEB_APP.md`。
+> 2026-08-21 新增：钉钉加签机器人通知；发送失败会保留未通知状态并在下次任务重试。此前已实现 iPhone Web App、历史归档、Telegram 可选发送和 GitHub Actions 每日任务。
 
 ## 1. 功能与运行结果
 
@@ -169,7 +169,8 @@ GitHub Actions 每日定时触发
 
 - 定时配置：`.github/workflows/daily-report.yml`；
 - 当前时间：北京时间每天 16:17；
-- 发送凭据：GitHub Secrets `TELEGRAM_BOT_TOKEN`、`TELEGRAM_CHAT_ID`；
+- 首选发送凭据：GitHub Secrets `DINGTALK_WEBHOOK`、`DINGTALK_SECRET`；
+- 可选 Telegram：GitHub Secrets `TELEGRAM_BOT_TOKEN`、`TELEGRAM_CHAT_ID`；
 - 网页地址：GitHub Variable `WEB_APP_URL`；
 - Web App：`docs/index.html`；
 - 报告清单：`docs/reports.json`。
