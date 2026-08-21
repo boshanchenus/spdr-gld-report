@@ -1,0 +1,11 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+.matplotlib-cache/
+charts/*.log
+charts/**/*.log
+charts/*.xlsx
+charts/*.tmp
+charts/gld_weekly_net_change.png
+gld_weekly_net_change.png

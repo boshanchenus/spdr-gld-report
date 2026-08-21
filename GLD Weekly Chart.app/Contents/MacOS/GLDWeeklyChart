@@ -1,0 +1,80 @@
+#!/bin/zsh
+set -u
+
+APP_MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_DIR="$(cd "$APP_MACOS_DIR/../.." && pwd)"
+BUNDLED_PROJECT_DIR="$(cd "$APP_DIR/.." && pwd)"
+DEFAULT_PROJECT_DIR="/Users/boshanchen/Desktop/MyTools/SPDR_GLD_Change"
+
+if [[ -f "$BUNDLED_PROJECT_DIR/gld_weekly_chart.py" ]]; then
+  PROJECT_DIR="$BUNDLED_PROJECT_DIR"
+else
+  PROJECT_DIR="$DEFAULT_PROJECT_DIR"
+fi
+
+SCRIPT_PATH="$PROJECT_DIR/gld_weekly_chart.py"
+CHART_DIR="$PROJECT_DIR/charts"
+OUTPUT_PATH="$CHART_DIR/gld_weekly_net_change.png"
+LOG_PATH="$CHART_DIR/gld_weekly_chart.log"
+
+notify() {
+  /usr/bin/osascript \
+    -e 'on run argv' \
+    -e 'display notification (item 1 of argv) with title "GLD Weekly Chart"' \
+    -e 'end run' -- "$1" >/dev/null 2>&1 || true
+}
+
+show_error() {
+  /usr/bin/osascript \
+    -e 'on run argv' \
+    -e 'display dialog (item 1 of argv) buttons {"OK"} default button "OK" with title "GLD Weekly Chart"' \
+    -e 'end run' -- "$1" >/dev/null 2>&1 || true
+}
+
+notify "Generating the latest chart..."
+
+mkdir -p "$CHART_DIR"
+
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  echo "Cannot find script: $SCRIPT_PATH" > "$LOG_PATH"
+  show_error "Cannot find gld_weekly_chart.py. See $LOG_PATH"
+  exit 1
+fi
+
+PYTHON_BIN=""
+for CANDIDATE in \
+  "$PROJECT_DIR/.venv/bin/python" \
+  "/opt/homebrew/bin/python3" \
+  "/usr/local/bin/python3" \
+  "/usr/bin/python3"; do
+  if [[ -x "$CANDIDATE" ]] && "$CANDIDATE" -c \
+    'import matplotlib, openpyxl, pandas, requests' >/dev/null 2>&1; then
+    PYTHON_BIN="$CANDIDATE"
+    break
+  fi
+done
+
+if [[ -z "$PYTHON_BIN" ]]; then
+  {
+    echo "No usable Python environment was found."
+    echo "Required modules: matplotlib, openpyxl, pandas, requests"
+    echo "Expected environment: $PROJECT_DIR/.venv"
+  } > "$LOG_PATH"
+  show_error "Python 环境缺失或依赖不完整。请查看：$LOG_PATH"
+  exit 1
+fi
+
+cd "$PROJECT_DIR" || exit 1
+mkdir -p "$CHART_DIR"
+
+"$PYTHON_BIN" "$SCRIPT_PATH" --output "$OUTPUT_PATH" > "$LOG_PATH" 2>&1
+STATUS=$?
+
+if [[ "$STATUS" -ne 0 ]]; then
+  ERROR_SUMMARY="$(tail -n 8 "$LOG_PATH")"
+  show_error "报告生成失败：\n\n$ERROR_SUMMARY\n\n完整日志：$LOG_PATH"
+  exit "$STATUS"
+fi
+
+/usr/bin/open "$OUTPUT_PATH"
+notify "Chart saved to charts folder."

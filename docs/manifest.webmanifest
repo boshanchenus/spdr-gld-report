@@ -1,0 +1,13 @@
+{
+  "name": "SPDR GLD 周报",
+  "short_name": "GLD 周报",
+  "description": "查看最新与历史 SPDR GLD 持仓变化报告",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0c111b",
+  "theme_color": "#0c111b",
+  "icons": [
+    { "src": "icons/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
