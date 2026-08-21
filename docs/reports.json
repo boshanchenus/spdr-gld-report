@@ -1,6 +1,16 @@
 {
-  "updated_at": "2026-08-12T09:05:48+00:00",
+  "updated_at": "2026-08-21T08:39:35+00:00",
   "reports": [
+    {
+      "id": "2026-08-20",
+      "source_date": "2026-08-20",
+      "generated_at": "2026-08-21T08:39:35+00:00",
+      "image": "reports/2026-08-20.png",
+      "weeks": 6,
+      "latest_change": 15.4,
+      "net_change": 36.48,
+      "ending_tonnes": 1038.93
+    },
     {
       "id": "2026-08-11",
       "source_date": "2026-08-11",
