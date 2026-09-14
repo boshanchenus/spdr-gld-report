@@ -1,6 +1,17 @@
 {
-  "updated_at": "2026-09-11T04:39:09+00:00",
+  "updated_at": "2026-09-14T04:55:23+00:00",
   "reports": [
+    {
+      "id": "2026-09-11",
+      "source_date": "2026-09-11",
+      "generated_at": "2026-09-14T04:55:23+00:00",
+      "image": "reports/2026-09-11.png",
+      "weeks": 6,
+      "latest_change": -4.64,
+      "net_change": 40.41,
+      "ending_tonnes": 1047.42,
+      "dingtalk_notified_at": "2026-09-14T04:55:24+00:00"
+    },
     {
       "id": "2026-09-10",
       "source_date": "2026-09-10",
